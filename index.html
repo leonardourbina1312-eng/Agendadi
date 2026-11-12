@@ -1,0 +1,798 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mi Diario & Ventas Chiapas — Meta $4,000 MXN</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #faf7f2;
+      color: #2c221e;
+    }
+    .tab-active {
+      background-color: #6b3e26;
+      color: #ffffff;
+    }
+    .tab-inactive {
+      background-color: #efe7dc;
+      color: #5a463a;
+    }
+    .tab-inactive:hover {
+      background-color: #e4d7c5;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+  <!-- Toast notification -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 hidden rounded-xl bg-stone-900 px-4 py-3 text-sm font-medium text-white shadow-lg transition-opacity"></div>
+
+  <!-- Header -->
+  <header class="border-b border-amber-900/10 bg-white/90 backdrop-blur sticky top-0 z-30">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-900 text-amber-50 font-bold text-lg shadow-sm">
+          CH
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-stone-900 leading-tight">Diario & Ventas Chiapas</h1>
+          <p class="text-xs text-stone-500">Rutina personal · Cartera de clientes · Plan 60 días</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center rounded-lg border border-stone-200 bg-stone-50 p-0.5">
+          <button id="prevDayBtn" type="button" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-white" title="Día anterior">◀</button>
+          <input id="datePicker" type="date" class="bg-transparent px-2 py-1 text-xs sm:text-sm font-medium text-stone-800 focus:outline-none" />
+          <button id="nextDayBtn" type="button" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-white" title="Día siguiente">▶</button>
+        </div>
+        <button id="todayBtn" type="button" class="rounded-lg border border-amber-900/20 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100">Hoy</button>
+        <button id="exportBtn" type="button" class="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50">Exportar</button>
+        <label class="cursor-pointer rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50">
+          Importar
+          <input id="importInput" type="file" accept=".json" class="hidden" />
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 pt-5 space-y-5">
+    <!-- Top KPI Cards -->
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <!-- Sales Goal Card -->
+      <div class="rounded-2xl border border-amber-900/10 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-semibold uppercase tracking-wide text-amber-900/70">Meta diaria de ventas</span>
+          <div class="flex items-center gap-1 text-xs text-stone-500">
+            <span>Meta: $</span>
+            <input id="dailyGoalInput" type="number" min="100" step="100" class="w-20 rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-right font-semibold text-stone-800 focus:border-amber-700 focus:outline-none" />
+          </div>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="daySalesTotal" class="text-2xl font-bold text-stone-900">$0</span>
+          <span id="daySalesPct" class="text-sm font-semibold text-emerald-700">0%</span>
+        </div>
+        <div class="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-stone-100">
+          <div id="daySalesBar" class="h-full rounded-full bg-emerald-600 transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p class="mt-2 text-xs text-stone-500">Acumulado del mes: <strong id="monthSalesTotal" class="text-stone-800">$0</strong></p>
+      </div>
+
+      <!-- Habits Card -->
+      <div class="rounded-2xl border border-amber-900/10 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wide text-amber-900/70">Hábitos del día</span>
+          <span id="habitsCountText" class="text-xs font-semibold text-stone-600">0 / 7</span>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="habitsPctText" class="text-2xl font-bold text-stone-900">0%</span>
+          <span id="habitsBadge" class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">Pendiente</span>
+        </div>
+        <div class="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-stone-100">
+          <div id="habitsBar" class="h-full rounded-full bg-amber-700 transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p class="mt-2 text-xs text-stone-500">Despertar · Ejercicio · Lectura · Alimentación</p>
+      </div>
+
+      <!-- 60-Day Plan Card -->
+      <div class="rounded-2xl border border-amber-900/10 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wide text-amber-900/70">Plan 60 días</span>
+          <span id="planCountText" class="text-xs font-semibold text-stone-600">0 / 16</span>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="planPctText" class="text-2xl font-bold text-stone-900">0%</span>
+          <span class="text-xs text-stone-500">Sin eventos / venta directa</span>
+        </div>
+        <div class="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-stone-100">
+          <div id="planBar" class="h-full rounded-full bg-orange-600 transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p class="mt-2 text-xs text-stone-500">Enfoque: recompra, combos y rutas por zona</p>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex gap-2 overflow-x-auto pb-1">
+      <button type="button" data-tab="daily" class="tab-btn tab-active rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap transition">Día & Diario</button>
+      <button type="button" data-tab="calendar" class="tab-btn tab-inactive rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap transition">Calendario</button>
+      <button type="button" data-tab="plan60" class="tab-btn tab-inactive rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap transition">Plan 60 Días</button>
+    </nav>
+
+    <!-- TAB 1: DAILY -->
+    <section id="tab-daily" class="grid grid-cols-1 gap-5 lg:grid-cols-12">
+      <!-- Left Column: Habits & Journal -->
+      <div class="space-y-5 lg:col-span-6">
+        <!-- Habits -->
+        <div class="rounded-2xl border border-amber-900/10 bg-white p-5 shadow-sm">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-base font-bold text-stone-900">Rutina personal</h2>
+            <span id="activeDateLabel" class="text-xs font-medium text-amber-900 bg-amber-50 px-2.5 py-1 rounded-full"></span>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Wake up -->
+            <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-100 bg-stone-50/70 p-3">
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input id="habitWakeDone" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                <span class="text-sm font-medium text-stone-800">Despertar a tiempo</span>
+              </label>
+              <input id="habitWakeTime" type="time" class="rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-700" />
+            </div>
+
+            <!-- Exercise -->
+            <div class="space-y-2 rounded-xl border border-stone-100 bg-stone-50/70 p-3">
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input id="habitExerciseDone" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                <span class="text-sm font-medium text-stone-800">Ejercicio</span>
+              </label>
+              <input id="habitExerciseNote" type="text" placeholder="Ej. Caminata 35 min / Fuerza" class="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-700 focus:border-amber-700 focus:outline-none" />
+            </div>
+
+            <!-- Reading -->
+            <div class="space-y-2 rounded-xl border border-stone-100 bg-stone-50/70 p-3">
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input id="habitReadDone" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                <span class="text-sm font-medium text-stone-800">Lectura</span>
+              </label>
+              <input id="habitReadNote" type="text" placeholder="Ej. 20 páginas — Hábitos Atómicos" class="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-700 focus:border-amber-700 focus:outline-none" />
+            </div>
+
+            <!-- Nutrition -->
+            <div class="space-y-2.5 rounded-xl border border-stone-100 bg-stone-50/70 p-3">
+              <span class="block text-sm font-medium text-stone-800">Alimentación e hidratación</span>
+              <div class="grid grid-cols-2 gap-2 text-xs text-stone-700">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input id="habitBreakfast" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                  Desayuno saludable
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input id="habitLunch" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                  Comida balanceada
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input id="habitDinner" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                  Cena ligera
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input id="habitWater" type="checkbox" class="h-4 w-4 rounded accent-amber-800" />
+                  2L de agua
+                </label>
+              </div>
+              <input id="habitFoodNote" type="text" placeholder="Nota breve sobre tu alimentación de hoy" class="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-700 focus:border-amber-700 focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily Journal -->
+        <div class="rounded-2xl border border-amber-900/10 bg-white p-5 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-base font-bold text-stone-900">Diario del día y avances</h2>
+            <span id="journalSavedStatus" class="text-xs text-stone-400">Guardado automático</span>
+          </div>
+          <textarea id="journalText" rows="6" placeholder="¿Cómo te sentiste hoy? ¿Qué clientes contactaste? ¿Qué objeciones hubo y cuál es tu prioridad para mañana?" class="w-full rounded-xl border border-stone-200 bg-stone-50/60 p-3 text-sm text-stone-800 focus:border-amber-700 focus:bg-white focus:outline-none"></textarea>
+        </div>
+      </div>
+
+      <!-- Right Column: Chiapas Sales Tracker -->
+      <div class="space-y-5 lg:col-span-6">
+        <div class="rounded-2xl border border-amber-900/10 bg-white p-5 shadow-sm">
+          <h2 class="text-base font-bold text-stone-900 mb-3">Registrar venta (Productos de Chiapas)</h2>
+          <form id="saleForm" class="space-y-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label class="block text-xs font-medium text-stone-600 mb-1">Cliente</label>
+                <input id="saleClient" type="text" required placeholder="Ej. Sra. Martha / Oficina Centro" class="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-amber-700 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-stone-600 mb-1">Producto o combo</label>
+                <select id="saleProduct" class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:border-amber-700 focus:outline-none">
+                  <option value="Combo Desayuno Chiapaneco">Combo Desayuno Chiapaneco</option>
+                  <option value="Combo Quesero (Provolone + Bola + Hebra)">Combo Quesero (Provolone + Bola + Hebra)</option>
+                  <option value="Combo Tradición (Tascalate + Cacao + Café)">Combo Tradición (Tascalate + Cacao + Café)</option>
+                  <option value="Queso Provolone">Queso Provolone</option>
+                  <option value="Queso de Bola">Queso de Bola</option>
+                  <option value="Queso de Hebra / Oaxaca">Queso de Hebra / Oaxaca</option>
+                  <option value="Queso Doble Crema">Queso Doble Crema</option>
+                  <option value="Café de Chiapas">Café de Chiapas</option>
+                  <option value="Tascalate">Tascalate</option>
+                  <option value="Cacao">Cacao</option>
+                  <option value="Mermelada de Guayaba con Mango">Mermelada de Guayaba con Mango</option>
+                  <option value="Varios productos">Varios productos</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label class="block text-xs font-medium text-stone-600 mb-1">Monto (MXN)</label>
+                <input id="saleAmount" type="number" min="1" step="1" required placeholder="Ej. 650" class="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-amber-700 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-stone-600 mb-1">Canal de venta</label>
+                <select id="saleChannel" class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:border-amber-700 focus:outline-none">
+                  <option value="WhatsApp cliente actual">WhatsApp cliente actual</option>
+                  <option value="Estado de WhatsApp">Estado de WhatsApp</option>
+                  <option value="Llamada directa">Llamada directa</option>
+                  <option value="Recomendación / Referido">Recomendación / Referido</option>
+                  <option value="Entrega en ruta">Entrega en ruta</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full rounded-xl bg-amber-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-800 transition">
+              + Agregar venta al día
+            </button>
+          </form>
+        </div>
+
+        <!-- Sales List -->
+        <div class="rounded-2xl border border-amber-900/10 bg-white p-5 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-base font-bold text-stone-900">Ventas registradas hoy</h2>
+            <span id="salesCountBadge" class="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">0 pedidos</span>
+          </div>
+          <div id="salesList" class="space-y-2.5"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CALENDAR -->
+    <section id="tab-calendar" class="hidden space-y-5">
+      <div class="rounded-2xl border border-amber-900/10 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <button id="calPrevMonth" type="button" class="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-medium hover:bg-stone-50">◀</button>
+            <h2 id="calMonthTitle" class="text-base sm:text-lg font-bold text-stone-900 capitalize min-w-[160px] text-center"></h2>
+            <button id="calNextMonth" type="button" class="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-medium hover:bg-stone-50">▶</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 text-xs text-stone-600">
+            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span> Meta cumplida</span>
+            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span> Avance parcial</span>
+            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-stone-200"></span> Sin registro</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-stone-500 mb-2">
+          <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+        </div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 60-DAY PLAN -->
+    <section id="tab-plan60" class="hidden space-y-4">
+      <div class="rounded-2xl border border-amber-900/10 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-stone-900">Plan de 60 días: Venta directa sin eventos</h2>
+            <p class="text-xs text-stone-500">Marca cada actividad conforme avances para consolidar tus $4,000 MXN diarios.</p>
+          </div>
+          <select id="phaseFilter" class="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700">
+            <option value="all">Todas las fases</option>
+            <option value="1">Fase 1: Días 1–15 (Reactivación)</option>
+            <option value="2">Fase 2: Días 16–30 (Ticket y oficinas)</option>
+            <option value="3">Fase 3: Días 31–45 (Referidos y resurtido)</option>
+            <option value="4">Fase 4: Días 46–60 (Consolidación)</option>
+          </select>
+        </div>
+
+        <div id="planList" class="space-y-2.5"></div>
+
+        <form id="customPlanForm" class="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-4">
+          <select id="customPlanPhase" class="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
+            <option value="1">Fase 1 (Días 1–15)</option>
+            <option value="2">Fase 2 (Días 16–30)</option>
+            <option value="3">Fase 3 (Días 31–45)</option>
+            <option value="4">Fase 4 (Días 46–60)</option>
+          </select>
+          <input id="customPlanText" type="text" required placeholder="Agregar nueva actividad al plan de 60 días..." class="flex-1 min-w-[200px] rounded-lg border border-stone-200 px-3 py-2 text-xs focus:border-amber-700 focus:outline-none" />
+          <button type="submit" class="rounded-lg bg-amber-900 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-800">Agregar</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'chiapas_diario_v1';
+
+    const DEFAULT_PLAN_60 = [
+      { id: 'p1', phase: 1, days: 'Días 1–3', title: 'Organizar lista de clientes de eventos pasados (quesos, café, tascalate/cacao, mermelada)', done: false },
+      { id: 'p2', phase: 1, days: 'Días 4–5', title: 'Definir 3 combos estrella ($500–$800 MXN) y tomar fotos reales con luz natural', done: false },
+      { id: 'p3', phase: 1, days: 'Días 6–10', title: 'Contactar por WhatsApp a los primeros 50 clientes históricos (10 por día)', done: false },
+      { id: 'p4', phase: 1, days: 'Días 11–15', title: 'Fijar 2 rutas semanales de entrega por zona y publicar 2 estados de WhatsApp al día', done: false },
+      { id: 'p5', phase: 2, days: 'Días 16–18', title: 'Aplicar venta cruzada a clientes de un solo producto (sumar mermelada o café)', done: false },
+      { id: 'p6', phase: 2, days: 'Días 19–22', title: 'Proponer entregas grupales en oficinas, escuelas o negocios locales con envío gratis', done: false },
+      { id: 'p7', phase: 2, days: 'Días 23–26', title: 'Enviar recordatorio de recompra a quienes pidieron queso o café hace 10–12 días', done: false },
+      { id: 'p8', phase: 2, days: 'Días 27–30', title: 'Corte mensual en el diario: analizar qué combos y horarios cerraron más ventas', done: false },
+      { id: 'p9', phase: 3, days: 'Días 31–34', title: 'Activar dinámica de referidos con beneficio en mermelada o descuento en combo', done: false },
+      { id: 'p10', phase: 3, days: 'Días 35–38', title: 'Crear lista de clientes con "resurtido quincenal" fijo de quesos y café', done: false },
+      { id: 'p11', phase: 3, days: 'Días 39–42', title: 'Llevar degustación directa de provolone, doble crema y tascalate a 5 cafeterías/tiendas locales', done: false },
+      { id: 'p12', phase: 3, days: 'Días 43–45', title: 'Estandarizar los 3 mensajes de WhatsApp que mayor respuesta tuvieron', done: false },
+      { id: 'p13', phase: 4, days: 'Días 46–49', title: 'Dar seguimiento con oferta breve a clientes que cotizaron el primer mes y no cerraron', done: false },
+      { id: 'p14', phase: 4, days: 'Días 50–53', title: 'Consolidar calendario semanal fijo (lunes prospección, martes/jueves entregas)', done: false },
+      { id: 'p15', phase: 4, days: 'Días 54–57', title: 'Armar paquetes especiales de regalo o temporada para elevar el ticket promedio', done: false },
+      { id: 'p16', phase: 4, days: 'Días 58–60', title: 'Evaluación final de 60 días (hábitos + promedio de ventas) y plan del siguiente ciclo', done: false }
+    ];
+
+    let state = {
+      dailyGoal: 4000,
+      days: {},
+      plan60: JSON.parse(JSON.stringify(DEFAULT_PLAN_60))
+    };
+
+    function getTodayISO() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    let currentDate = getTodayISO();
+    let calendarViewDate = new Date(currentDate + 'T12:00:00');
+    let activeTab = 'daily';
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            state.dailyGoal = Number(parsed.dailyGoal) > 0 ? Number(parsed.dailyGoal) : 4000;
+            state.days = parsed.days && typeof parsed.days === 'object' ? parsed.days : {};
+            state.plan60 = Array.isArray(parsed.plan60) && parsed.plan60.length ? parsed.plan60 : JSON.parse(JSON.stringify(DEFAULT_PLAN_60));
+          }
+        }
+      } catch (e) {
+        // Fallback to in-memory state if storage is blocked
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        // Ignore storage quota/sandbox errors
+      }
+    }
+
+    function getDayData(dateStr) {
+      if (!state.days[dateStr]) {
+        state.days[dateStr] = {
+          habits: {
+            wakeDone: false,
+            wakeTime: '06:30',
+            exerciseDone: false,
+            exerciseNote: '',
+            readDone: false,
+            readNote: '',
+            breakfast: false,
+            lunch: false,
+            dinner: false,
+            water: false,
+            foodNote: ''
+          },
+          sales: [],
+          journal: ''
+        };
+      }
+      return state.days[dateStr];
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2600);
+    }
+
+    function formatMXN(num) {
+      return '$' + Number(num || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+    }
+
+    function computeHabitsDone(h) {
+      return [h.wakeDone, h.exerciseDone, h.readDone, h.breakfast, h.lunch, h.dinner, h.water].filter(Boolean).length;
+    }
+
+    function computeDaySales(d) {
+      return (d.sales || []).reduce((sum, s) => sum + Number(s.amount || 0), 0);
+    }
+
+    function renderKPIs() {
+      const dayData = getDayData(currentDate);
+      const daySales = computeDaySales(dayData);
+      const goal = state.dailyGoal || 4000;
+      const salesPct = Math.min(100, Math.round((daySales / goal) * 100));
+
+      document.getElementById('dailyGoalInput').value = goal;
+      document.getElementById('daySalesTotal').textContent = formatMXN(daySales);
+      document.getElementById('daySalesPct').textContent = `${Math.round((daySales / goal) * 100)}%`;
+      document.getElementById('daySalesBar').style.width = `${salesPct}%`;
+
+      const monthPrefix = currentDate.slice(0, 7);
+      let monthTotal = 0;
+      Object.keys(state.days).forEach(k => {
+        if (k.startsWith(monthPrefix)) {
+          monthTotal += computeDaySales(state.days[k]);
+        }
+      });
+      document.getElementById('monthSalesTotal').textContent = formatMXN(monthTotal);
+
+      const habitsDone = computeHabitsDone(dayData.habits);
+      const habitsPct = Math.round((habitsDone / 7) * 100);
+      document.getElementById('habitsCountText').textContent = `${habitsDone} / 7`;
+      document.getElementById('habitsPctText').textContent = `${habitsPct}%`;
+      document.getElementById('habitsBar').style.width = `${habitsPct}%`;
+      const badge = document.getElementById('habitsBadge');
+      if (habitsDone === 7) {
+        badge.textContent = '¡Día completo!';
+        badge.className = 'rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800';
+      } else if (habitsDone > 0) {
+        badge.textContent = 'En progreso';
+        badge.className = 'rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900';
+      } else {
+        badge.textContent = 'Pendiente';
+        badge.className = 'rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600';
+      }
+
+      const planDone = state.plan60.filter(p => p.done).length;
+      const planTotal = state.plan60.length || 1;
+      const planPct = Math.round((planDone / planTotal) * 100);
+      document.getElementById('planCountText').textContent = `${planDone} / ${planTotal}`;
+      document.getElementById('planPctText').textContent = `${planPct}%`;
+      document.getElementById('planBar').style.width = `${planPct}%`;
+    }
+
+    function renderDailyView() {
+      const dayData = getDayData(currentDate);
+      const h = dayData.habits;
+
+      document.getElementById('datePicker').value = currentDate;
+      const formattedDate = new Date(currentDate + 'T12:00:00').toLocaleDateString('es-MX', {
+        weekday: 'short', day: 'numeric', month: 'short'
+      });
+      document.getElementById('activeDateLabel').textContent = formattedDate;
+
+      document.getElementById('habitWakeDone').checked = !!h.wakeDone;
+      document.getElementById('habitWakeTime').value = h.wakeTime || '06:30';
+      document.getElementById('habitExerciseDone').checked = !!h.exerciseDone;
+      document.getElementById('habitExerciseNote').value = h.exerciseNote || '';
+      document.getElementById('habitReadDone').checked = !!h.readDone;
+      document.getElementById('habitReadNote').value = h.readNote || '';
+      document.getElementById('habitBreakfast').checked = !!h.breakfast;
+      document.getElementById('habitLunch').checked = !!h.lunch;
+      document.getElementById('habitDinner').checked = !!h.dinner;
+      document.getElementById('habitWater').checked = !!h.water;
+      document.getElementById('habitFoodNote').value = h.foodNote || '';
+      document.getElementById('journalText').value = dayData.journal || '';
+
+      renderSalesList();
+      renderKPIs();
+    }
+
+    function renderSalesList() {
+      const dayData = getDayData(currentDate);
+      const list = document.getElementById('salesList');
+      const sales = dayData.sales || [];
+      document.getElementById('salesCountBadge').textContent = `${sales.length} ${sales.length === 1 ? 'pedido' : 'pedidos'}`;
+
+      if (!sales.length) {
+        list.innerHTML = '<p class="rounded-xl border border-dashed border-stone-200 p-4 text-center text-xs text-stone-400">Aún no hay ventas registradas en esta fecha.</p>';
+        return;
+      }
+
+      list.innerHTML = '';
+      sales.forEach((sale, idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-3 rounded-xl border border-stone-100 bg-stone-50/70 p-3';
+        row.innerHTML = `
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-stone-800"></p>
+            <p class="truncate text-xs text-stone-500"></p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="text-sm font-bold text-emerald-700">${formatMXN(sale.amount)}</span>
+            <button type="button" data-idx="${idx}" class="delete-sale-btn rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Eliminar</button>
+          </div>
+        `;
+        row.querySelector('p:first-child').textContent = `${sale.client} — ${sale.product}`;
+        row.querySelector('p:last-child').textContent = sale.channel;
+        list.appendChild(row);
+      });
+
+      list.querySelectorAll('.delete-sale-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-idx'));
+          dayData.sales.splice(idx, 1);
+          saveState();
+          renderSalesList();
+          renderKPIs();
+          renderCalendar();
+          showToast('Venta eliminada');
+        });
+      });
+    }
+
+    function renderCalendar() {
+      const year = calendarViewDate.getFullYear();
+      const month = calendarViewDate.getMonth();
+      const title = calendarViewDate.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+      document.getElementById('calMonthTitle').textContent = title;
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      const firstDay = new Date(year, month, 1);
+      const startOffset = (firstDay.getDay() + 6) % 7; // Monday = 0
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 0; i < startOffset; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'h-16 rounded-xl bg-stone-50/40';
+        grid.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const d = state.days[dateStr];
+        const sales = d ? computeDaySales(d) : 0;
+        const habits = d ? computeHabitsDone(d.habits) : 0;
+        const hasJournal = d && d.journal && d.journal.trim().length > 0;
+
+        let dotClass = 'bg-stone-200';
+        if (sales >= (state.dailyGoal || 4000) && habits >= 5) {
+          dotClass = 'bg-emerald-500';
+        } else if (sales > 0 || habits > 0 || hasJournal) {
+          dotClass = 'bg-amber-400';
+        }
+
+        const isSelected = dateStr === currentDate;
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = `flex h-16 flex-col justify-between rounded-xl border p-2 text-left transition ${isSelected ? 'border-amber-800 bg-amber-50/80 ring-1 ring-amber-800' : 'border-stone-100 bg-white hover:border-amber-300'}`;
+        cell.innerHTML = `
+          <div class="flex items-center justify-between w-full">
+            <span class="text-xs font-bold text-stone-800">${day}</span>
+            <span class="h-2 w-2 rounded-full ${dotClass}"></span>
+          </div>
+          <div class="text-[11px] font-medium text-stone-600 truncate">${sales > 0 ? formatMXN(sales) : (habits > 0 ? `${habits}/7 háb.` : '—')}</div>
+        `;
+        cell.addEventListener('click', () => {
+          currentDate = dateStr;
+          switchTab('daily');
+          renderDailyView();
+        });
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderPlan60() {
+      const filter = document.getElementById('phaseFilter').value;
+      const list = document.getElementById('planList');
+      list.innerHTML = '';
+
+      const filtered = state.plan60.filter(item => filter === 'all' || String(item.phase) === filter);
+      filtered.forEach(item => {
+        const card = document.createElement('label');
+        card.className = `flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition ${item.done ? 'border-emerald-200 bg-emerald-50/40' : 'border-stone-100 bg-stone-50/70 hover:bg-stone-100/70'}`;
+        card.innerHTML = `
+          <input type="checkbox" ${item.done ? 'checked' : ''} class="mt-0.5 h-4 w-4 rounded accent-amber-800 shrink-0" />
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-0.5">
+              <span class="rounded-md bg-amber-900/10 px-2 py-0.5 text-[11px] font-semibold text-amber-900">Fase ${item.phase} · ${item.days}</span>
+            </div>
+            <p class="text-sm ${item.done ? 'line-through text-stone-400' : 'text-stone-800 font-medium'}"></p>
+          </div>
+        `;
+        card.querySelector('p').textContent = item.title;
+        card.querySelector('input').addEventListener('change', (e) => {
+          item.done = e.target.checked;
+          saveState();
+          renderKPIs();
+          renderPlan60();
+        });
+        list.appendChild(card);
+      });
+    }
+
+    function switchTab(tabName) {
+      activeTab = tabName;
+      ['daily', 'calendar', 'plan60'].forEach(name => {
+        document.getElementById(`tab-${name}`).classList.toggle('hidden', name !== tabName);
+      });
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const isMe = btn.getAttribute('data-tab') === tabName;
+        btn.classList.toggle('tab-active', isMe);
+        btn.classList.toggle('tab-inactive', !isMe);
+      });
+      if (tabName === 'calendar') renderCalendar();
+      if (tabName === 'plan60') renderPlan60();
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+      });
+
+      document.getElementById('datePicker').addEventListener('change', (e) => {
+        if (e.target.value) {
+          currentDate = e.target.value;
+          renderDailyView();
+        }
+      });
+
+      document.getElementById('prevDayBtn').addEventListener('click', () => {
+        const d = new Date(currentDate + 'T12:00:00');
+        d.setDate(d.getDate() - 1);
+        currentDate = d.toISOString().slice(0, 10);
+        renderDailyView();
+      });
+
+      document.getElementById('nextDayBtn').addEventListener('click', () => {
+        const d = new Date(currentDate + 'T12:00:00');
+        d.setDate(d.getDate() + 1);
+        currentDate = d.toISOString().slice(0, 10);
+        renderDailyView();
+      });
+
+      document.getElementById('todayBtn').addEventListener('click', () => {
+        currentDate = getTodayISO();
+        renderDailyView();
+      });
+
+      document.getElementById('dailyGoalInput').addEventListener('change', (e) => {
+        const val = Number(e.target.value);
+        if (val >= 100) {
+          state.dailyGoal = val;
+          saveState();
+          renderKPIs();
+          if (activeTab === 'calendar') renderCalendar();
+          showToast('Meta diaria actualizada');
+        }
+      });
+
+      const habitBindings = [
+        ['habitWakeDone', 'wakeDone', 'checked'],
+        ['habitWakeTime', 'wakeTime', 'value'],
+        ['habitExerciseDone', 'exerciseDone', 'checked'],
+        ['habitExerciseNote', 'exerciseNote', 'value'],
+        ['habitReadDone', 'readDone', 'checked'],
+        ['habitReadNote', 'readNote', 'value'],
+        ['habitBreakfast', 'breakfast', 'checked'],
+        ['habitLunch', 'lunch', 'checked'],
+        ['habitDinner', 'dinner', 'checked'],
+        ['habitWater', 'water', 'checked'],
+        ['habitFoodNote', 'foodNote', 'value']
+      ];
+
+      habitBindings.forEach(([elId, field, prop]) => {
+        document.getElementById(elId).addEventListener('input', (e) => {
+          const dayData = getDayData(currentDate);
+          dayData.habits[field] = e.target[prop];
+          saveState();
+          renderKPIs();
+        });
+      });
+
+      document.getElementById('journalText').addEventListener('input', (e) => {
+        const dayData = getDayData(currentDate);
+        dayData.journal = e.target.value;
+        saveState();
+        document.getElementById('journalSavedStatus').textContent = 'Guardado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      });
+
+      document.getElementById('saleForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const client = document.getElementById('saleClient').value.trim();
+        const product = document.getElementById('saleProduct').value;
+        const amount = Number(document.getElementById('saleAmount').value);
+        const channel = document.getElementById('saleChannel').value;
+        if (!client || !(amount > 0)) return;
+
+        const dayData = getDayData(currentDate);
+        dayData.sales.unshift({ client, product, amount, channel });
+        saveState();
+        document.getElementById('saleClient').value = '';
+        document.getElementById('saleAmount').value = '';
+        renderSalesList();
+        renderKPIs();
+        showToast('Venta registrada');
+      });
+
+      document.getElementById('calPrevMonth').addEventListener('click', () => {
+        calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+        renderCalendar();
+      });
+
+      document.getElementById('calNextMonth').addEventListener('click', () => {
+        calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+        renderCalendar();
+      });
+
+      document.getElementById('phaseFilter').addEventListener('change', renderPlan60);
+
+      document.getElementById('customPlanForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const phase = Number(document.getElementById('customPlanPhase').value);
+        const title = document.getElementById('customPlanText').value.trim();
+        if (!title) return;
+        state.plan60.push({ id: 'custom_' + Date.now(), phase, days: 'Personalizada', title, done: false });
+        saveState();
+        document.getElementById('customPlanText').value = '';
+        renderKPIs();
+        renderPlan60();
+        showToast('Actividad agregada al plan');
+      });
+
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `respaldo_diario_chiapas_${getTodayISO()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Respaldo descargado');
+      });
+
+      document.getElementById('importInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const imported = JSON.parse(reader.result);
+            if (imported && imported.days) {
+              state = imported;
+              saveState();
+              renderDailyView();
+              renderPlan60();
+              renderCalendar();
+              showToast('Respaldo importado con éxito');
+            } else {
+              showToast('El archivo no tiene el formato esperado');
+            }
+          } catch (err) {
+            showToast('No se pudo leer el archivo JSON');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+    }
+
+    loadState();
+    bindEvents();
+    renderDailyView();
+  </script>
+</body>
+</html>
+```
